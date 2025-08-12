@@ -21,6 +21,7 @@ export async function createRoom(): Promise<string> {
   const code = nanoid(6).toUpperCase();
   await setDoc(doc(db, "rooms", code), {
     createdAt: serverTimestamp(),
+    type: "created", // to distinguish from joined rooms
   });
   return code;
 }
@@ -34,8 +35,23 @@ export async function joinRoom(
   const roomRef = doc(db, "rooms", roomCode);
   const roomSnap = await getDoc(roomRef);
   if (!roomSnap.exists()) throw new Error("Room not found");
+  
+  // Save participant info
   const participantRef = doc(db, "rooms", roomCode, "participants", uid);
-  await setDoc(participantRef, { name, joinedAt: serverTimestamp() }, { merge: true });
+  await setDoc(participantRef, { 
+    name, 
+    joinedAt: serverTimestamp(),
+    type: "anonymous" // to distinguish from email users
+  }, { merge: true });
+  
+  // Save user info to global users collection for persistence
+  const userRef = doc(db, "users", uid);
+  await setDoc(userRef, {
+    name,
+    lastRoomCode: roomCode,
+    lastJoinedAt: serverTimestamp(),
+    type: "anonymous"
+  }, { merge: true });
 }
 
 export function subscribeParticipants(
