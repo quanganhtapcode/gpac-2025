@@ -1,103 +1,85 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ensureAnonymousAuth } from "@/lib/firebase";
+import { createRoom } from "@/lib/room";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  useEffect(() => {
+    ensureAnonymousAuth().catch(() => {});
+    try {
+      const last = typeof window !== "undefined" ? localStorage.getItem("lastRoomCode") : null;
+      if (last) {
+        window.location.replace(`/room/${last}`);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const handleCreate = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const roomCode = await createRoom();
+      window.location.href = `/join?code=${roomCode}`;
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoin = () => {
+    if (!code) return;
+    window.location.href = `/join?code=${code.trim().toUpperCase()}`;
+  };
+
+  return (
+    <main className="mx-auto max-w-sm px-4 py-10 min-h-screen bg-white text-black">
+      <h1 className="text-2xl font-semibold mb-6">Split Room</h1>
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm mb-2">Nhập mã phòng</label>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 rounded-md border px-3 py-2"
+              placeholder="VD: ABC123"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              inputMode="text"
+              autoCapitalize="characters"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <button onClick={handleJoin} className="rounded-md bg-black text-white px-4 py-2">
+              Vào
+            </button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        <div className="border-t pt-6">
+          <button
+            onClick={handleCreate}
+            disabled={loading}
+            className="w-full rounded-md bg-black text-white px-4 py-3"
+          >
+            {loading ? "Đang tạo..." : "Tạo phòng mới"}
+          </button>
+        </div>
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <p className="text-xs text-gray-500">
+          Bằng cách vào phòng, bạn đồng ý đăng nhập ẩn danh. Ứng dụng là PWA, giao diện đơn giản cho
+          điện thoại.
+        </p>
+      </div>
+      <div className="mt-10">
+        <Link href="/" className="text-sm underline">
+          Trang chủ
+        </Link>
+      </div>
+    </main>
   );
 }
